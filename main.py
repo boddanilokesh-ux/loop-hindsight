@@ -9,6 +9,7 @@ Post results the user logs are RETAINED too, and Hindsight consolidates them int
 """
 import os
 import re
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import List, Literal, Optional
@@ -35,7 +36,8 @@ HS = Hindsight(
     api_key=os.getenv("HINDSIGHT_API_KEY") or None,
     timeout=90.0,
 )
-LLM = Groq(api_key=os.getenv("GROQ_API_KEY"))
+# Created only when a key is set, so the server still starts and the page can explain what is missing.
+LLM = Groq(api_key=os.getenv("GROQ_API_KEY")) if os.getenv("GROQ_API_KEY") else None
 MODELS = list(dict.fromkeys([os.getenv("GROQ_MODEL", "openai/gpt-oss-120b"), "qwen/qwen3-32b"]))
 
 app = FastAPI(title="Loop")
@@ -56,6 +58,13 @@ _hs_thread = ThreadPoolExecutor(max_workers=1, thread_name_prefix="hindsight")
 
 def hs_run(fn, **kwargs):
     return _hs_thread.submit(fn, **kwargs).result()
+
+
+def log(action: str, bank: str, detail: str) -> None:
+    """One terminal line per memory operation, so retain/recall/reflect are visible live."""
+    line = f"[memory] {action:<7} {bank}  {detail}"
+    enc = sys.stdout.encoding or "utf-8"  # a redirected Windows console may not be UTF-8; never crash on emoji
+    print(line.encode(enc, "replace").decode(enc), flush=True)
 
 
 # ---------- helpers ----------
@@ -112,7 +121,9 @@ def recall_texts(bank: str, query: str, types: Optional[List[str]] = None, limit
         kwargs["types"] = types
     try:
         res = hs_run(HS.recall, **kwargs)
-        return [{"text": clean(r.text), "type": getattr(r, "type", None)} for r in res.results][:limit]
+        out = [{"text": clean(r.text), "type": getattr(r, "type", None)} for r in res.results][:limit]
+        log("recall", bank, f"{query[:50]!r} -> {len(out)} memories" + (f" [{', '.join(types)}]" if types else ""))
+        return out
     except Exception as e:
         print(f"[recall] {e}")
         return []
@@ -131,6 +142,8 @@ def recall_context(bank: str, message: str):
 
 
 def call_llm(system: str, messages: list) -> str:
+    if LLM is None:
+        raise HTTPException(503, "GROQ_API_KEY is not set. Add it to .env and restart the server.")
     last = None
     for model in MODELS:  # open models can fail; fall back to the next one
         try:
@@ -244,6 +257,7 @@ def onboard(req: OnboardReq):
     # A fixed document_id means saving the profile again replaces the old one instead of piling up.
     hs("save the brand profile", HS.retain, bank_id=bank, content=profile_sentence(req.model_dump()),
        context="brand profile", document_id="brand-profile")
+    log("retain", bank, f"brand profile for {req.name!r}")
     return {"ok": True}
 
 
@@ -255,6 +269,7 @@ def seed(req: UserReq):
     hs("save the brand profile", HS.retain, bank_id=bank, content=profile_sentence(DEMO_BRAND),
        context="brand profile", document_id="brand-profile")
     hs("load the sample posts", HS.retain_batch, bank_id=bank, items=SEED_ITEMS, retain_async=True)
+    log("retain", bank, f"{len(SEED_ITEMS)} sample memories (async batch)")
     return {"ok": True, "count": len(SEED_ITEMS)}
 
 
@@ -282,6 +297,7 @@ def chat(req: ChatReq):
                 context="owner message in chat",
                 retain_async=True,
             )
+            log("retain", bank, f"owner message {req.message[:50]!r} (Loop's reply is not stored)")
         except Exception as e:
             print(f"[retain] {e}")
     return {"reply": reply, "memories": memories, "memory_on": req.memory}
@@ -306,6 +322,7 @@ def log_result(req: ResultReq):
     if when:
         kwargs["timestamp"] = when
     hs("save the post result", HS.retain, **kwargs)
+    log("retain", bank, f"post result: {req.platform} {req.format}, reach {req.reach:,}, {req.comments} comments")
     return {"ok": True}
 
 
@@ -336,4 +353,5 @@ def insights(req: UserReq):
         budget="low",
         context="weekly readout for the brand owner",
     )
+    log("reflect", bank, "weekly readout")
     return {"text": ans.text}

@@ -2,39 +2,39 @@
 
 The answer looked great. Loop, the social media agent I built on [Hindsight agent memory](https://github.com/vectorize-io/hindsight), recommended a carousel at 10 AM for a café's new single-origin coffee, and it backed the plan with a confident justification: "We're using the carousel layout and 10 AM slot that were recommended in our Sep 28 2026 plan for the Araku coffee series."
 
-The only plan from Sep 28 was one Loop had written itself, a few minutes earlier, with nothing useful in memory. The café's real history pointed the other way: its Friday-evening reels mostly reached 4,700 to 7,000 people, and its static posts never broke 900.
+The only plan from Sep 28 was one Loop had written itself, minutes earlier, with nothing useful in memory. The café's real history pointed the other way: its Friday-evening reels mostly reached 4,700 to 7,000 people, and its static posts never broke 900.
 
-My agent had started agreeing with itself. This post covers how that happened, why it's an easy mistake with any long-term memory, and what the fix looks like in code.
+My agent had started agreeing with itself. Here's how that happened, and what the fix looks like in code.
 
 ## What Loop does
 
-Loop is a strategist for one brand at a time. You describe the brand in a few taps: what you post about, where, how you sound, and any hard rules. Then you ask it things like "write an Instagram post for our new Araku coffee" or "why do my discount posts get so little reach?" When a post goes live, you log how it did: reach, likes, comments, shares, and a note such as "lots of comments asked where the beans are from."
+Loop is a strategist for one brand at a time. You describe the brand in a few taps, then ask things like "write an Instagram post for our new Araku coffee" or "why do my discount posts get so little reach?" When a post goes live, you log its reach, likes, comments, shares and a note.
 
-The stack is deliberately small. A FastAPI app (`main.py`) serves a single-page UI, Groq handles generation (`openai/gpt-oss-120b`, with `qwen/qwen3-32b` as a fallback), and Hindsight holds everything the agent knows. Every brand gets its own memory bank, created with a short mission statement that tells Hindsight what the memory is for: learning which formats, topics, tones and posting times work for this audience, and updating beliefs when new results contradict old ones.
+The stack is small: a FastAPI app (`main.py`), a single-page UI, Groq for generation (`openai/gpt-oss-120b`, falling back to `qwen/qwen3-32b`), and Hindsight for everything the agent knows. Each brand gets its own memory bank, created with a mission that tells Hindsight what the memory is for: learning which formats, topics, tones and posting times work for this audience.
 
-Every chat message runs the same three steps:
+Every chat message runs three steps:
 
-1. **Recall** what Hindsight knows that's relevant to the request.
+1. **Recall** what Hindsight knows that's relevant.
 2. **Generate** a reply grounded in those memories.
 3. **Retain** something, so the next reply is better.
 
-Post results go through `retain` too, with their real timestamps. Hindsight extracts facts from what it's given and consolidates them in the background into observations, beliefs like "reels featuring the café's craft drive the highest engagement." Those observations fill a "What Loop has learned" panel beside the chat, and `reflect` turns the whole history into a weekly readout. If you haven't used Hindsight's [retain, recall and reflect APIs](https://hindsight.vectorize.io/), that is the entire surface area. The rest of this post is about the places where it was easy to hold them wrong.
+Post results are retained too, with their real timestamps. Hindsight extracts facts and consolidates them in the background into observations, beliefs like "reels featuring the café's craft drive the highest engagement," which fill a "What Loop has learned" panel. `reflect` turns the whole history into a weekly readout. That's the whole surface of Hindsight's [retain, recall and reflect APIs](https://hindsight.vectorize.io/). The rest of this post is about where I held them wrong.
 
 ![How Loop uses Hindsight: recall before every reply, retain only owner messages and measured results](docs/architecture.png)
 
 ## The bug: step three stored the wrong thing
 
-My first version of step three looked reasonable. It stored the exchange: `content=f"The user asked: {req.message}\nLoop replied: {reply[:600]}"`. Store the conversation and the agent remembers the conversation. That's what memory means, right?
+My first version of step three stored the whole exchange: `content=f"The user asked: {req.message}\nLoop replied: {reply[:600]}"`. The agent remembers the conversation. That's what memory means, right?
 
-Here's what actually happened. The first time I asked about the new coffee, recall came back empty (more on why in the lessons), so the model did what models do: it produced a plausible generic plan, a carousel at 10 AM. That reply went straight into memory. Hindsight did exactly its job. It extracted a clean, dated fact: "Loop created a carousel Instagram post for Araku coffee featuring farm, roasting, brewing, and tasting notes."
+The first time I asked about the new coffee, recall came back empty (more on why in the lessons), so the model produced a plausible generic plan: a carousel at 10 AM. That reply went straight into memory, and Hindsight did exactly its job, extracting a clean, dated fact: "Loop created a carousel Instagram post for Araku coffee featuring farm, roasting, brewing, and tasting notes."
 
-The next time I asked, recall surfaced that fact right next to the real post history. To a language model, a dated statement about a carousel plan for Araku coffee looks exactly like evidence, so it cited it. The memory layer wasn't wrong. I had fed it the agent's own speculation and filed it as experience.
+The next time I asked, recall surfaced that fact next to the real post history. To a language model, a dated statement about a carousel plan looks exactly like evidence, so it cited it. The memory layer wasn't wrong. I had filed the agent's own speculation as experience.
 
-I think this generalizes. Any agent that writes its outputs into the same store it reads evidence from will drift toward agreeing with itself. The first guess gets cited, the citation makes the second answer more confident, and the second answer gets stored too.
+This generalizes: any agent that writes its outputs into the store it reads evidence from will drift toward agreeing with itself.
 
 ## The fix: retain inputs, not outputs
 
-The fix was two changes. First, step three now stores only what the owner said:
+Step three now stores only what the owner said:
 
 ```python
 # RETAIN what the owner said (requests, preferences, feedback) in the background so the user
@@ -50,15 +50,13 @@ if req.memory:
     )
 ```
 
-Owner messages are real signal: "we're launching Araku coffee," "never mention competitors," "stop using emojis." The agent's replies are hypotheses, and a hypothesis only becomes evidence after it has been tested. That's exactly what the "Log results" flow is for. A draft that gets posted and measured comes back as a result with numbers attached. A draft nobody posted shouldn't come back at all.
+Owner messages are real signal. The agent's replies are hypotheses, and a hypothesis only becomes evidence once it's tested: a draft that gets posted and measured comes back through "Log results" with numbers attached. A draft nobody posted shouldn't come back at all.
 
-Second, the system prompt now says so explicitly, because older banks can still hold self-generated facts: "Measured post results and owner statements are evidence. Loop's own earlier drafts are NOT evidence: never justify a choice by saying you suggested it before."
-
-`retain_async=True` turned out to be a nice side effect. Retention now happens in the background, so the user gets the reply without waiting on fact extraction.
+The system prompt says so too, because older banks can still hold self-generated facts: "Loop's own earlier drafts are NOT evidence: never justify a choice by saying you suggested it before." And `retain_async=True` means retention no longer delays the reply.
 
 ## Recall: two queries, not one
 
-The other half of grounding is what you ask memory for. A single recall on the user's message works for specific questions and fails for vague ones. "What should I post this weekend?" doesn't look anything like "the café is closed on Mondays" or "never use more than 4 hashtags," but both matter. So every chat runs two recalls and merges them:
+A single recall on the user's message fails for vague questions. "What should I post this weekend?" looks nothing like "the café is closed on Mondays," but both matter. So each chat runs two recalls and merges them:
 
 ```python
 def recall_context(bank: str, message: str):
@@ -73,25 +71,23 @@ def recall_context(bank: str, message: str):
     return merged[:14]
 ```
 
-The standing query is boring on purpose. It's the "things you must never forget about this brand" query, and it means the owner's rules land in context even when the question doesn't mention them.
+The second query is boring on purpose: it keeps the owner's rules in context even when the question doesn't mention them.
 
 ## What it looks like now
 
-To make the effect of memory visible, the UI has a Memory switch. Off means no recall and no retain: the model gets a generic system prompt and its own separate conversation history. That separate history was its own bug. My first version shared one history across both modes, which quietly leaked brand details into the "generic" answers and made the comparison meaningless.
+The UI has a Memory switch. Off means no recall, no retain, a generic system prompt, and a separate conversation history. (My first version shared one history across both modes, which quietly leaked brand details into the "generic" answers.)
 
-To test Loop, I seeded a bank with 24 posts of history for a café brand, plus five owner rules. Then I asked the same question in both modes: "Write an Instagram post for our new Araku single-origin coffee."
+To test Loop, I seeded a bank with 24 posts of history for a café brand plus five owner rules, then asked the same question in both modes: "Write an Instagram post for our new Araku single-origin coffee."
 
-With memory off, Loop wrote a competent caption for a generic coffee brand and finished with eight hashtags: `#ArakuCoffee #SingleOrigin #SpecialtyCoffee #CoffeeLovers #FreshRoast #FromFarmToCup #MorningBoost #CoffeeCulture`. The owner's very first rule is "never more than 4 hashtags."
+Memory off produced a competent caption for a generic coffee brand, ending in eight hashtags. The owner's first rule is "never more than 4 hashtags."
 
 ![Memory off: a generic caption that breaks the owner's hashtag rule](docs/screenshots/05-memory-off.png)
 
-With memory on, it suggested a 15-second reel of the first pour, and its "Why" line used numbers it hadn't invented: "The Sep 25 Reel of the first Araku pour pulled 6,880 reach, 905 likes, 184 comments, and 132 shares—our strongest recent performance, so we'll replicate that format and timing while staying under the 4-hashtag limit."
+Memory on suggested a 15-second reel of the first pour, and its "Why" line used numbers it hadn't invented: "The Sep 25 Reel of the first Araku pour pulled 6,880 reach, 905 likes, 184 comments, and 132 shares—our strongest recent performance, so we'll replicate that format and timing while staying under the 4-hashtag limit."
 
 ![Memory on: 14 memories recalled, and a draft grounded in a real post's numbers](docs/screenshots/03-memory-on.png)
 
-Then the loop closed. I logged a result for that reel: 7,120 reach, 948 likes, 201 comments, and a note that lots of commenters asked where the beans came from. In a later session, with a fresh page and an empty chat history, the new draft invited followers to ask about the beans' journey, and its "Why" line cited the new result: "A Reel on 28 Sept 2026 about Araku beans reached 7,120 people, earned 948 likes and sparked many 'origin?' comments."
-
-The weekly readout, written by `reflect`, turned that one note into a recommendation: test a post "dedicated exclusively to the 'story behind the bean'". It also flagged the 15%-off announcement that reached 570 people as the thing that wasn't working.
+Then the loop closed. I logged a result for that reel: 7,120 reach, 948 likes, 201 comments, and a note that lots of commenters asked where the beans came from. In a later session, with an empty chat history, the draft invited followers to ask about the beans' journey and cited the new result: "A Reel on 28 Sept 2026 about Araku beans reached 7,120 people, earned 948 likes and sparked many 'origin?' comments." The weekly readout from `reflect` turned that note into a recommendation to test a post "dedicated exclusively to the 'story behind the bean'", and flagged the 15%-off post that reached 570 people as what wasn't working.
 
 ![The weekly readout from reflect, next to the beliefs Hindsight consolidated](docs/screenshots/07-weekly-readout.png)
 
@@ -101,16 +97,14 @@ None of that lives in the prompt or the chat history. It lives in the bank.
 
 **1. Retain inputs and measured outcomes, never raw outputs.** If your agent writes into the store it reads evidence from, it will eventually cite itself. Outputs should earn their way into memory by being tested.
 
-**2. Give every memory a stable identity.** Sample posts and the brand profile use fixed document IDs, so saving a profile twice replaces it instead of stacking two contradictory versions. Hindsight enforces this for async batches: it rejects a batch whose items share a document ID, which is how I found out my seeding code was wrong. Each item now carries its own ID and its real timestamp:
+**2. Give memories stable IDs and real timestamps.** Sample posts and the brand profile use fixed document IDs, so saving a profile twice replaces it instead of stacking contradictory versions. Hindsight rejects an async batch whose items share a document ID, which is how I caught a bug in my seeding code. Timestamps matter because "what's working lately?" is a temporal question:
 
 ```python
 {"content": _post_sentence(p), "context": "post performance",
  "timestamp": _post_time(p).isoformat(), "document_id": f"sample-post-{i:02d}"}
 ```
 
-**3. Timestamp everything that happened at a specific time.** "What's working lately?" is a temporal question. Results carry their real posting time through `timestamp=`, so memory can tell an August post from one logged yesterday. The readout's talk of "the latest reel" depends on it.
-
-**4. Know your client's concurrency model.** Remember the empty recall that started all this? The Python client I used wraps async calls in a sync API, and its HTTP session is tied to the event loop of the first thread that uses it. FastAPI runs sync routes on a thread pool, so calls began failing at random with "Timeout context manager should be used inside a task." It looked like flaky memory, but it was a threading problem on my side. The smallest fix was one worker thread that owns every Hindsight call:
+**3. Know your client's concurrency model.** Remember the empty recall that started all this? The Python client wraps async calls in a sync API, and its HTTP session is tied to the event loop of the first thread that uses it. FastAPI runs sync routes on a thread pool, so calls failed at random with "Timeout context manager should be used inside a task." It looked like flaky memory; it was my threading. The smallest fix was one worker thread that owns every Hindsight call:
 
 ```python
 _hs_thread = ThreadPoolExecutor(max_workers=1, thread_name_prefix="hindsight")
@@ -119,10 +113,10 @@ def hs_run(fn, **kwargs):
     return _hs_thread.submit(fn, **kwargs).result()
 ```
 
-The cleaner long-term version is async routes calling the client's async methods directly. The single thread was the smallest change that made recall reliable.
+Async routes with the client's async methods would be cleaner.
 
-**5. Show the memory.** The "What Loop has learned" panel and the "What it remembered" button did more for trust than any prompt tweak. When an answer cites a number, you can open the exact memories it came from. When something's wrong, you can see why. That's how I spotted my own agent's carousel plan sitting in its recall results, dressed up as history.
+**4. Show the memory.** The "What Loop has learned" panel and the "What it remembered" button did more for trust than any prompt tweak. When an answer cites a number, you can open the exact memories behind it. That's how I spotted my agent's own carousel plan in its recall results, dressed up as history.
 
 ## Closing
 
-The model didn't get smarter between the eight-hashtag answer and the one that cited a real reel. What changed was what it was allowed to remember, and what I stopped letting it remember. If you're adding long-term memory to an agent, it's worth reading up on [what agent memory is and how it differs from stuffing context](https://vectorize.io/what-is-agent-memory) before you decide what to write into it. In Loop, the most important line of code is the one that doesn't retain the reply.
+The model didn't get smarter between the eight-hashtag answer and the one that cited a real reel. What changed was what it was allowed to remember, and what I stopped letting it remember. If you're adding long-term memory to an agent, read up on [what agent memory is and how it differs from stuffing context](https://vectorize.io/what-is-agent-memory) before deciding what to write into it. In Loop, the most important line of code is the one that doesn't retain the reply.

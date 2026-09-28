@@ -8,7 +8,10 @@ Replace `[your name]`. Talk it through in your own words rather than reading it;
 - Open http://localhost:8000 and click **Open the demo café** about two minutes before recording, so the
   "What Loop has learned" panel is already full.
 - Open `main.py` in your editor at the chat route (search for `@app.post("/api/chat")`).
-- Increase the font size in the browser (Ctrl +) and the editor. Turn off notifications.
+- Increase the font size in the browser (Ctrl +), the editor and the terminal. Turn off notifications.
+- Record at 1080p or higher (the guide's minimum), and record the screen itself, not a phone pointed at it.
+- Keep the server terminal visible next to the browser. Every memory operation prints one `[memory]` line
+  (`recall`, `retain`, `reflect`). That's how you show retain and recall happening live.
 - The model's wording and numbers change between runs. Point at whatever the "Why:" line actually cites.
 
 ## 0:00–0:30 Intro
@@ -26,7 +29,10 @@ Replace `[your name]`. Talk it through in your own words rather than reading it;
 ## 1:00–2:55 Demo: recall, retain, and the bug
 **1:00 On screen:** switch Memory back on. A divider appears in the chat. Ask the same question.
 
-> Memory on. Before it generates anything, Loop calls Hindsight's recall twice: once with my question, and once with a standing query for the brand's rules and its best and worst posts.
+**On screen:** point at the terminal: two `[memory] recall` lines appear before the reply, then
+`[memory] retain ... owner message ... (Loop's reply is not stored)` right after it.
+
+> Memory on. Before it generates anything, Loop calls Hindsight's recall twice: once with my question, and once with a standing query for the brand's rules and its best and worst posts. You can see both recalls in the terminal, and then a retain of my message. Not its reply. Hold that thought.
 
 **1:15 On screen:** point at the "14 memories used" tag, then the **Why:** line.
 
@@ -42,7 +48,7 @@ Replace `[your name]`. Talk it through in your own words rather than reading it;
 
 **2:15 On screen:** back to the app. Under the memory-on reply click **Log results**. Fill in Reach 7120,
 Likes 948, Comments 201, Shares 139, note "lots of comments asked where the beans are from". Click
-**Save to memory**. Show the terminal line `POST /api/result 200`.
+**Save to memory**. Show the terminal line `[memory] retain ... post result: Instagram reel, reach 7,120, 201 comments`.
 
 > So let's measure it. This goes to the result endpoint, which retains the numbers with the real posting time.
 
@@ -52,7 +58,7 @@ Likes 948, Comments 201, Shares 139, note "lots of comments asked where the bean
 
 (If the Why line doesn't mention it, ask: "What did we learn from the Araku reel?")
 
-**2:45 On screen:** click **Weekly readout** in the right-hand panel.
+**2:45 On screen:** click **Weekly readout** in the right-hand panel; the terminal prints `[memory] reflect ... weekly readout`.
 
 > And reflect writes a weekly readout from the whole bank: reels about the café's craft are working, the 15%-off post that reached 570 people isn't, and it suggests testing a story-behind-the-bean post, straight from that comment note.
 

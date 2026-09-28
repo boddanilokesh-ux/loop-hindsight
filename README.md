@@ -47,3 +47,4 @@ menu at the top left. Brand profiles are remembered in your browser; everything 
 - The Hindsight sync client is tied to the event loop of the thread that first uses it, so
   every Hindsight call runs on one dedicated thread (see `hs_run` in `main.py`).
 # loop-hindsight
+# loop-hindsight

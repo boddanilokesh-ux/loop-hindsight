@@ -1,6 +1,6 @@
 # Thumbnail prompt (Prompt 6)
 
-Paste everything in the box into Nano Banana (Gemini) and attach a clear, well-lit photo of yourself
+Paste everything in the box into Nano Banana, Gemini's image generator (https://gemini.google/overview/image-generation/, any free Gmail account works) and attach a clear, well-lit photo of yourself
 (looking at the camera or pointing to one side works best). You can also attach
 `docs/screenshots/05-memory-off.png` and `docs/screenshots/03-memory-on.png` so it can borrow the real UI.
 
