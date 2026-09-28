@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "pulsing-dot",
+        "value": "*",
+        "files": [
+          "index.html"
+        ],
+        "createdAt": "2026-09-28T07:43:02.130Z",
+        "reason": "Claude: the only pulsing element is .dots, shown solely while a request is in flight (reply, sample upload, readout) and removed when it finishes: a real loading indicator, not decorative liveness"
+      },
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          "docs/architecture.html"
+        ],
+        "createdAt": "2026-09-28T07:49:26.384Z",
+        "reason": "Claude: rendered PNG checked; every label is light text (#A0A8B8 or lighter) on #161A22/#101319/#0B0D11 fills, 6.5:1 or better. The detector cannot resolve SVG rect backgrounds."
+      }
+    ]
+  }
+}

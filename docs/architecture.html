@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Loop architecture</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700&family=Unbounded:wght@600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; background: #0B0D11; }
+  svg { display: block; }
+  .title { font: 600 26px "Unbounded", sans-serif; fill: #ECEEF2; letter-spacing: -0.02em; }
+  .sub { font: 500 15px "Manrope", sans-serif; fill: #A0A8B8; }
+  .box { fill: #161A22; stroke: #343B49; }
+  .row { fill: #161A22; stroke: #242A35; }
+  .h { font: 700 16px "Manrope", sans-serif; fill: #ECEEF2; }
+  .t { font: 500 13px "Manrope", sans-serif; fill: #A0A8B8; }
+  .mono { font: 500 13px "JetBrains Mono", Consolas, monospace; fill: #ECEEF2; font-variant-ligatures: none; }
+  .monos { font: 500 12px "JetBrains Mono", Consolas, monospace; fill: #A0A8B8; font-variant-ligatures: none; }
+  .n { fill: #C5F25A; font-weight: 700; }
+  .lbl { font: 600 11px "Manrope", sans-serif; fill: #A0A8B8; text-anchor: middle; }
+  .lime { stroke: #C5F25A; stroke-width: 2; fill: none; }
+  .grey { stroke: #8790A2; stroke-width: 2; fill: none; }
+  .warn { font: 600 12px "Manrope", sans-serif; fill: #FF7A6B; }
+  .acc { font: 600 12px "Manrope", sans-serif; fill: #C5F25A; }
+</style>
+</head>
+<body>
+<svg id="diagram" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 690" width="1200" height="690" role="img" aria-label="How Loop uses Hindsight">
+  <defs>
+    <marker id="mL" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#C5F25A"/></marker>
+    <marker id="mG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#8790A2"/></marker>
+  </defs>
+  <rect width="1200" height="690" fill="#0B0D11"/>
+
+  <text class="title" x="40" y="58">How Loop uses Hindsight</text>
+  <text class="sub" x="40" y="88">Recall before every reply. Retain only what the owner said and what posts actually did.</text>
+
+  <!-- owner -->
+  <rect class="box" x="40" y="275" width="170" height="90" rx="14"/>
+  <text class="h" x="125" y="314" text-anchor="middle">Brand owner</text>
+  <text class="t" x="125" y="338" text-anchor="middle">asks, logs results</text>
+
+  <!-- UI -->
+  <rect class="box" x="250" y="250" width="210" height="140" rx="14"/>
+  <text class="h" x="355" y="288" text-anchor="middle">Loop UI</text>
+  <text class="monos" x="355" y="311" text-anchor="middle">index.html</text>
+  <text class="t" x="355" y="337" text-anchor="middle">chat + memory switch</text>
+  <text class="t" x="355" y="358" text-anchor="middle">"What Loop has learned"</text>
+
+  <line class="grey" x1="214" y1="320" x2="246" y2="320" marker-start="url(#mG)" marker-end="url(#mG)"/>
+  <line class="grey" x1="464" y1="320" x2="496" y2="320" marker-start="url(#mG)" marker-end="url(#mG)"/>
+
+  <!-- FastAPI -->
+  <rect x="500" y="120" width="340" height="510" rx="16" fill="#101319" stroke="#343B49"/>
+  <text class="h" x="520" y="152">FastAPI · main.py</text>
+
+  <rect class="row" x="520" y="168" width="300" height="130" rx="12"/>
+  <text class="mono" x="536" y="196">POST /api/chat</text>
+  <text class="t" x="536" y="222"><tspan class="n">1 </tspan>recall_context(), two queries</text>
+  <text class="t" x="536" y="244"><tspan class="n">2 </tspan>call_llm(), grounded in memory</text>
+  <text class="t" x="536" y="266"><tspan class="n">3 </tspan>retain the owner's message</text>
+  <text class="warn" x="550" y="286">never Loop's own reply</text>
+
+  <rect class="row" x="520" y="312" width="300" height="86" rx="12"/>
+  <text class="mono" x="536" y="340">POST /api/result</text>
+  <text class="t" x="536" y="366">retain metrics with the real post date</text>
+
+  <rect class="row" x="520" y="412" width="300" height="86" rx="12"/>
+  <text class="mono" x="536" y="440">GET /api/learned</text>
+  <text class="t" x="536" y="466">recall observations</text>
+
+  <rect class="row" x="520" y="512" width="300" height="100" rx="12"/>
+  <text class="mono" x="536" y="540">POST /api/insights</text>
+  <text class="t" x="536" y="566">reflect over the whole bank</text>
+  <text class="acc" x="536" y="590">→ weekly readout</text>
+
+  <!-- Groq -->
+  <rect class="box" x="900" y="168" width="260" height="76" rx="14"/>
+  <text class="h" x="920" y="199">Groq LLM</text>
+  <text class="monos" x="920" y="224">gpt-oss-120b · qwen3-32b</text>
+
+  <!-- Hindsight -->
+  <rect x="900" y="262" width="260" height="368" rx="16" fill="rgba(197,242,90,0.06)" stroke="#C5F25A" stroke-opacity="0.6"/>
+  <text x="920" y="297" style="font: 600 19px 'Unbounded', sans-serif; fill: #C5F25A;">Hindsight</text>
+  <text class="t" x="920" y="321">one memory bank per brand</text>
+  <text class="monos" x="920" y="342">loop-&lt;brand&gt;</text>
+
+  <rect class="row" x="920" y="362" width="220" height="92" rx="12"/>
+  <text class="h" x="936" y="389" style="font-size:15px">Facts</text>
+  <text class="t" x="936" y="411">posts, rules, owner messages,</text>
+  <text class="t" x="936" y="431">with entities and dates</text>
+
+  <line class="lime" x1="1030" y1="457" x2="1030" y2="486" marker-end="url(#mL)"/>
+  <text class="t" x="1042" y="476" style="font-size:12px">consolidates</text>
+
+  <rect class="row" x="920" y="490" width="220" height="122" rx="12"/>
+  <text class="h" x="936" y="517" style="font-size:15px">Observations</text>
+  <text class="t" x="936" y="539">beliefs that update when</text>
+  <text class="t" x="936" y="559">new results disagree</text>
+  <text class="acc" x="936" y="590">→ "What Loop has learned"</text>
+
+  <!-- traffic between FastAPI and the outside -->
+  <line class="grey" x1="824" y1="206" x2="896" y2="206" marker-start="url(#mG)" marker-end="url(#mG)"/>
+  <text class="lbl" x="860" y="196">generate</text>
+  <line class="lime" x1="824" y1="272" x2="896" y2="272" marker-start="url(#mL)" marker-end="url(#mL)"/>
+  <text class="lbl" x="860" y="265">recall</text>
+  <line class="lime" x1="824" y1="292" x2="896" y2="292" marker-end="url(#mL)"/>
+  <text class="lbl" x="860" y="287" dy="-0.5">retain</text>
+  <line class="lime" x1="824" y1="355" x2="896" y2="355" marker-end="url(#mL)"/>
+  <text class="lbl" x="860" y="348">retain</text>
+  <line class="lime" x1="824" y1="455" x2="896" y2="455" marker-start="url(#mL)" marker-end="url(#mL)"/>
+  <text class="lbl" x="860" y="448">recall</text>
+  <line class="lime" x1="824" y1="562" x2="896" y2="562" marker-start="url(#mL)" marker-end="url(#mL)"/>
+  <text class="lbl" x="860" y="555">reflect</text>
+
+  <text class="t" x="40" y="668" style="font-size:14px">Lime lines are memory traffic. Loop's own replies are never retained, so it can't cite its own guesses.</text>
+</svg>
+</body>
+</html>
